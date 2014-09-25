@@ -36,6 +36,7 @@ tools_env = clean_envs['userspace'].Clone()
 ws2811_lib = tools_env.Library('libws2811', [ 'ws2811.c' ])
 tools_env['LIBS'].append(ws2811_lib)
 
+ws2811_shlib = tools_env.SharedLibrary('libws2811', [ 'ws2811.c' ])
 
 # Test Program
 srcs = Split('''
@@ -48,4 +49,4 @@ for src in srcs:
 
 test = tools_env.Program('test', objs + tools_env['LIBS'])
 
-Default([test, ws2811_lib])
+Default([test, ws2811_lib, ws2811_shlib])
