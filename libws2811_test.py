@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-from libws2811_wrap import *
+from ws2811 import *
 import signal, time, sys
+import random
 
-WIDTH=8
-HEIGHT=8
+WIDTH=16
+HEIGHT=32
 
 ledstring = WS2811_T()
 ledstring.count = WIDTH * HEIGHT
@@ -13,7 +14,7 @@ ledstring.dmanum = 5
 ledstring.gpionum = 18
 ledstring.invert = 0
 
-matrix = ((WS2811_LED_T * WIDTH) * HEIGHT)()
+matrix = ((WS2811_LED_T * HEIGHT) * WIDTH)()
 
 def matrix_render():
     for x in range(WIDTH):
@@ -25,24 +26,37 @@ def matrix_raise():
         for x in range(WIDTH):
             matrix[x][y] = matrix[x][y + 1]
 
-dotspos = [0, 1, 2, 3, 4, 5, 6, 7]
-dotcolors = (
-    0x200000,  # red
-    0x201000,  # orange
-    0x202000,  # yellow
-    0x002000,  # green
-    0x002020,  # lightblue
-    0x000020,  # blue
-    0x100010,  # purple
-    0x200010,  # pink
-)
+def encodeColor(r = 1.0, g = None, b = None):
+    g = r if g is None else g
+    b = r if b is None else b
+    shiftAndTruncate = lambda val, sh: (int(val * 255) & 0xFF) << sh
+    r_bits = shiftAndTruncate(r, 16)
+    g_bits = shiftAndTruncate(g, 8)
+    b_bits = shiftAndTruncate(b, 0)
+    return r_bits | g_bits | b_bits
 
-def matrix_bottom():
+dotcolors = (
+    (0.25, 0, 0),
+    (0.25, 0.125, 0),
+    (0.25, 0.25, 0),
+    (0, 0.25, 0),
+    (0, 0.25, 0.25),
+    (0, 0, 0.25),
+    (0.125, 0, 0.125),
+    (0.25, 0, 0.125),
+    (0.25, 0.25, 0.25),
+    (0, 0, 0),
+)
+dotspos = list(range(len(dotcolors)))
+#dotspos = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+
+def matrix_bottom(rf = 1.0, gf = 1.0, bf = 1.0):
     for i in range(len(dotspos)):
         dotspos[i] += 1
         if (dotspos[i] > (WIDTH - 1)):
             dotspos[i] = 0
-        matrix[dotspos[i]][HEIGHT - 1] = dotcolors[i]
+        r, g, b = dotcolors[i]
+        matrix[dotspos[i]][HEIGHT - 1] = encodeColor(r * rf, g * gf, b * bf)
 
 def ctrl_c_handler(signum, frame):
     print("Received signal %d" % (signum,))
@@ -58,15 +72,19 @@ def main():
     if (ws2811_init(ledstring)):
         return -1
     
+    rf, gf, bf = 0.0, 0.0, 0.0
     while True:
+        rf = (rf + 0.001) % (random.random() * 10)
+        gf = (gf + 0.0013) % (random.random() * 12)
+        bf = (bf + 0.0009) % (random.random() * 14)
         matrix_raise()
-        matrix_bottom()
+        matrix_bottom(rf, gf, bf)
         matrix_render()
         if (ws2811_render(ledstring)):
             ret = -1
             break
-        time.sleep(1 / 15.0)
-        print(".")
+        time.sleep(1 / 120.0)
     return ret
 
-sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())
